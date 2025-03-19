@@ -1,0 +1,93 @@
+#include <Arduino.h>
+
+// Leds
+#define ledRojo 26
+#define ledAmarillo 25
+#define ledVerde 33
+
+//Sensor Temperatura pin
+#define temp 36
+
+// Canales PWM
+#define canalPWMRojo 8
+#define canalPWMVerde 7
+#define canalPWMAmarillo 6
+
+// Frecuencia PWM
+#define freqPWM 50
+
+// Resolución (bits)
+#define resPWM 10
+
+// creación de funciones PWM y ADC
+void initPWMServo(void);
+void initPWMRojo(void);
+void initPWMAmarillo(void);
+void initPWMVerde(void);
+
+float tempLectura = 0.0;
+float tempConversion = 0.0;
+float temp_final = 0.0;
+
+void setup() {
+  // Comenzar comunicación Serial
+  Serial.begin(115200);
+
+  // Inicialización funciones PWM
+  initPWMAmarillo();
+  initPWMRojo();
+  initPWMVerde();
+}
+
+void loop() {
+  // lectura de temperatura
+  tempLectura = analogRead(temp);
+
+  //Codigo para hacer lectura con potenciometro simulando valores
+  //temp_final = map(tempLectura, 0, 4095, 30.0, 40.0);
+
+  //codigo para uso de sensor temperatura
+  //conversion de lectura de mV a grados celsius
+  tempConversion = ((tempLectura * 3.3)/4095.0);
+  temp_final = tempConversion * 100.0;
+
+  if (temp_final > 37.5)
+  {
+    ledcWrite(canalPWMRojo, 1023);
+    ledcWrite(canalPWMAmarillo, 0);
+    ledcWrite(canalPWMVerde, 0);
+  }
+  else if (temp_final <= 37.5 && temp_final >= 37.0)
+  {
+    ledcWrite(canalPWMRojo, 0);
+    ledcWrite(canalPWMAmarillo, 1023);
+    ledcWrite(canalPWMVerde, 0);
+  }
+  else
+  {
+    ledcWrite(canalPWMRojo, 0);
+    ledcWrite(canalPWMAmarillo, 0);
+    ledcWrite(canalPWMVerde, 1023);
+  }
+}
+
+//funcion PWM led rojo
+void initPWMRojo(void)
+{
+  ledcSetup(canalPWMRojo, freqPWM, resPWM);
+  ledcAttachPin(ledRojo, canalPWMRojo);
+}
+
+//funcion PWM led verde
+void initPWMVerde(void)
+{
+  ledcSetup(canalPWMVerde, freqPWM, resPWM);
+  ledcAttachPin(ledVerde, canalPWMVerde);
+}
+
+//funcion PWM Led amarillo
+void initPWMAmarillo(void)
+{
+  ledcSetup(canalPWMAmarillo, freqPWM, resPWM);
+  ledcAttachPin(ledAmarillo, canalPWMAmarillo);
+}
