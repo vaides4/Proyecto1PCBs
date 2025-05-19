@@ -1,14 +1,27 @@
 #include <Arduino.h>
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
+//#include <Adafruit_MPU6050.h>
+//#include <Adafruit_Sensor.h>
 #include <Wire.h>
+#include <Temperature_LM75_Derived.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// Pantalla SSD1306
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1
+#define SCREEN_ADDRESS 0x3C
+
+// Creacion de variable para SSD1306 usando libreria
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // Leds
 #define ledRojo 26
 #define ledAmarillo 25
 #define ledVerde 33
 
-//Sensor Temperatura pin
+// Sensor Temperatura pin
 #define temp 36
 
 // Canales PWM
@@ -28,21 +41,28 @@ void initPWMRojo(void);
 void initPWMAmarillo(void);
 void initPWMVerde(void);
 
-// Variables utilizada para lectura de temperatura
+//Valor de temperatura para simular con potenciometro
 float tempLectura = 0.0;
-float tempConversion = 0.0;
 float temp_final = 0.0;
 
-Adafruit_MPU6050 mpu;
+//Variable a utilizar con LM75 I2C usando libreria
+Generic_LM75 temperature;
 
-//Contador para cantidad de pasos
+//Variable que guarda lectura de LM75 I2C
+float tempC;
+
+// Creacion de variable para MPU con libreria
+//Adafruit_MPU6050 mpu;
+
+// Contador para cantidad de pasos
 int stepCount = 0;
-//Float donde se guardara la magnitud previa
+
+// Variables utilizadas para lectura de pasos
 float prevMagnitude = 0;
 unsigned long lastStepTime = 0;
 const float stepThreshold = 1.3;
 
-// interrupciones
+// Interrupciones
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
 // Interrupción contador
@@ -71,6 +91,23 @@ void setup() {
   initPWMRojo();
   initPWMVerde();
 
+  while(!Serial) {}
+  
+  Serial.begin(115200);
+
+  Wire.begin();
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+
+  // Clear the buffer
+  display.clearDisplay();
+  display.setTextSize(1);             // Tamaño del texto
+  display.setTextColor(SSD1306_WHITE);// Color del texto 
+
+  /*
   while (!Serial){
     delay(10); // will pause Zero, Leonardo, etc until serial console opens
   }  
@@ -85,13 +122,14 @@ void setup() {
   }
   Serial.println("MPU6050 Found!");
 
-  //setupt motion detection
+  setupt motion detection
   mpu.setHighPassFilter(MPU6050_HIGHPASS_0_63_HZ);
   mpu.setMotionDetectionThreshold(1);
   mpu.setMotionDetectionDuration(20);
   mpu.setInterruptPinLatch(true);	// Keep it latched.  Will turn off when reinitialized.
   mpu.setInterruptPinPolarity(true);
   mpu.setMotionInterrupt(true);
+  */
 
   // entradas botones
   pinMode(BOT1.boton1, INPUT_PULLUP);
@@ -106,20 +144,25 @@ void loop() {
   tempLectura = analogRead(temp);
 
   //Codigo para hacer lectura con potenciometro simulando valores
-  //temp_final = map(tempLectura, 0, 4095, 30.0, 40.0);
+  temp_final = map(tempLectura, 0, 4095, 30.0, 40.0);
 
-  //codigo para uso de sensor temperatura
-  //conversion de lectura de mV a grados celsius
-  tempConversion = ((tempLectura * 3.3)/4095.0);
-  temp_final = tempConversion * 100.0;
+  tempC = temperature.readTemperatureC();
 
-  if (temp_final > 37.5){
+  display.clearDisplay();
+  display.setCursor(0, 0);            // Posición inicial del texto
+  display.println(F("Temperatura: "));
+  display.setCursor(20, 8);  
+  display.print(tempC, 2);
+  display.println(" C");  
+  display.display();  
+
+  if (tempC > 37.5){
     ledcWrite(canalPWMRojo, 1023);
     ledcWrite(canalPWMAmarillo, 0);
     ledcWrite(canalPWMVerde, 0);
   }
 
-  else if (temp_final <= 37.5 && temp_final >= 37.0){
+  else if (tempC <= 37.5 && tempC >= 37.0){
     ledcWrite(canalPWMRojo, 0);
     ledcWrite(canalPWMAmarillo, 1023);
     ledcWrite(canalPWMVerde, 0);
@@ -131,7 +174,13 @@ void loop() {
     ledcWrite(canalPWMVerde, 1023);
   }
 
-  if (mpu.getMotionInterruptStatus()) {
+  Serial.print("Temperature = ");
+  Serial.print(temperature.readTemperatureC());
+  Serial.println(" C");
+
+  delay(250);
+
+  /*if (mpu.getMotionInterruptStatus()) {
     sensors_event_t a, g, tempMPU;
     mpu.getEvent(&a, &g, &tempMPU);
 
@@ -149,7 +198,7 @@ void loop() {
     }
     prevMagnitude = magnitude;
   }
-
+  */
   if (BOT1.pressed != BOT1.lastState)
   {
     if (BOT1.pressed)
